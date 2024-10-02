@@ -1,11 +1,11 @@
 
 import java.io.*;
 import java.net.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.*;
-//import org.json.JSONObject;
 public class Content {
+
+    private static long contentLamportClock = 1;
+
     public static void main(String[] args) throws IOException{
 
         // Ensure that two arguments are provided: server URL and filename
@@ -18,9 +18,7 @@ public class Content {
         String serverHost = args[0].split(":")[0];
         int serverPort = Integer.parseInt(args[0].split(":")[1]);
         String filePath = args[1];
-        // Print them to verify
-       // System.out.println("Port: " + serverPort);
-       // System.out.println("Filename: " + filePath);
+
 
         //Fetch the file from the filePath provided and convert it into a Json file and then send it to Server
         //construct the data format to be sent and send the a PUT request
@@ -30,18 +28,25 @@ public class Content {
             System.out.println("ID field not present");
         }
         String jsonObject = convertMapToJson(dataMap);
-        //System.out.println(jsonObject);
+
 
         String request = createPutRequest(jsonObject);
-        sendPutRequest(serverHost, serverPort, request);
-
-
-
+        BufferedReader in = sendPutRequest(serverHost, serverPort, request);
+        while(true){
+        }
 
 
 
     }
 
+    /**
+     * Parses a file at the specified path and extracts key-value pairs
+     * separated by a colon (":").
+     *
+     * @param filePath The path to the file to be parsed.
+     * @return A Map containing the key-value pairs from the file, or
+     *         null if the file is not found or an I/O error occurs.
+     */
     private static Map<String, String> parseFile(String filePath) {
         Map<String, String> dataMap = new HashMap<>();
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
@@ -64,6 +69,12 @@ public class Content {
         return dataMap;
     }
 
+    /**
+     * Converts a map of key-value pairs to a JSON string representation.
+     *
+     * @param dataMap A map containing key-value pairs to be converted to JSON.
+     * @return A string representing the JSON format of the provided map.
+     */
     private static String convertMapToJson(Map<String, String> dataMap) {
         StringBuilder jsonBuilder = new StringBuilder();
         jsonBuilder.append("{");
@@ -83,21 +94,39 @@ public class Content {
         return jsonBuilder.toString();
     }
 
+    /**
+     * Constructs a PUT request for sending JSON data to the server.
+     *
+     * @param jsonData The JSON data to be included in the request body.
+     * @return A formatted PUT request string.
+     */
     private static String createPutRequest(String jsonData) {
         return String.format(
                 "PUT /weather.json HTTP/1.1\r\n" +
                         "User-Agent: ATOMClient/1/0\r\n" +
                         "Content-Type: application/json\r\n" +
                         "Content-Length: %d\r\n" +
-                        "\r\n" +
+                        "Lamport-Clock:"+contentLamportClock+"\r\n" +
                         "%s",
                 jsonData.length(), jsonData
         );
     }
-    private static void sendPutRequest(String serverHost, int serverPort, String putRequest) {
+
+
+
+    /**
+     * Sends a PUT request to the specified server and returns the response reader.
+     *
+     * @param serverHost The hostname of the server.
+     * @param serverPort The port number of the server.
+     * @param putRequest The formatted PUT request to be sent.
+     * @return A BufferedReader for reading the server's response, or null if an error occurs.
+     */
+
+    private static BufferedReader sendPutRequest(String serverHost, int serverPort, String putRequest) {
         try (Socket socket = new Socket(serverHost, serverPort);
              DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-             DataInputStream in = new DataInputStream(socket.getInputStream())) {
+             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
             // Send the PUT request
             out.writeUTF(putRequest);
@@ -106,18 +135,46 @@ public class Content {
             // Read the response from the server
             String responseLine = in.readLine();
             if (responseLine != null) {
-                System.out.println("Response: " + responseLine);
-                if (responseLine.startsWith("HTTP/1.1 200") || responseLine.startsWith("HTTP/1.1 201")) {
+
+                if (responseLine.contains("200") || responseLine.contains("201"))
+                {
                     System.out.println("Success: Response Code - " + responseLine);
+                    long clock = extractLamportClock(responseLine);
+                    contentLamportClock = clock;
                 } else {
                     System.out.println("Error: Response Code - " + responseLine);
                 }
             }
+            return in;
         } catch (IOException e) {
             System.out.println("Error sending PUT request: " + e.getMessage());
         }
+        return null;
     }
+    private static long extractLamportClock(String response) {
+        // Split the response into individual lines using CRLF as delimiter
+        String[] lines = response.split("\r\n");
 
+        // Iterate through each line to search for the Lamport-Clock header
+        for (String line : lines) {
+            // Check if the line starts with "Lamport-Clock:"
+            if (line.startsWith("Lamport-Clock:")) {
+                // Split the line into key and value parts
+                String[] parts = line.split(":");
+                if (parts.length == 2) {
+                    try {
+                        // Parse the Lamport clock value and return it
+                        return Integer.parseInt(parts[1].trim());
+                    } catch (NumberFormatException e) {
+                        // Handle the case where the Lamport clock value is not a valid integer
+                        System.out.println("Invalid Lamport clock value: " + parts[1]);
+                    }
+                }
+            }
+        }
+        // Return null if the Lamport clock was not found or could not be parsed
+        return -1;
+    }
 
 
 

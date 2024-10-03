@@ -11,13 +11,13 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class AggregationServer {
 
-    private static long serverLamportClock = 1;
-    private static Map<Socket, UUID> idMap = new HashMap<>(); // Map to store client sockets and their unique IDs
-    private static List<String> weatherData = new ArrayList<>(); // List to store weather data
-    private static Map<Socket, Long> serverTime = new ConcurrentHashMap<>(); // Map to store socket and the last interaction timestamp
-    private static Map<Socket,String> fileMap = new ConcurrentHashMap<>();
-    private static final int TIMEOUT = 30000; // Timeout duration set to 30 seconds (in milliseconds)
-    private static ReentrantLock fileLock = new ReentrantLock();
+    public static long serverLamportClock = 1;
+    public static Map<Socket, UUID> idMap = new HashMap<>(); // Map to store client sockets and their unique IDs
+    public static List<String> weatherData = new ArrayList<>(); // List to store weather data
+    public static Map<Socket, Long> serverTime = new ConcurrentHashMap<>(); // Map to store socket and the last interaction timestamp
+    public static Map<Socket,String> fileMap = new ConcurrentHashMap<>();
+    public static final int TIMEOUT = 30000; // Timeout duration set to 30 seconds (in milliseconds)
+    public static ReentrantLock fileLock = new ReentrantLock();
 
     public static void main(String[] args) throws IOException {
 
@@ -29,6 +29,9 @@ public class AggregationServer {
         } else {
             port = Integer.parseInt(args[0]);
         }
+
+        // Load existing data from the latest file at startup
+        loadWeatherDataFromLatestFile();
 
 
         //remove older data thread
@@ -50,6 +53,42 @@ public class AggregationServer {
 
 
 
+    }
+
+
+    /**
+     * Loads weather data from the latest JSON file in the data directory.
+     */
+    public static void loadWeatherDataFromLatestFile() {
+        File dir = new File("data");
+        File[] files = dir.listFiles((d, name) -> name.endsWith(".json"));
+
+        if (files != null && files.length > 0) {
+            File latestFile = files[0];
+
+            // Find the latest file
+            for (File file : files) {
+                if (file.lastModified() > latestFile.lastModified()) {
+                    latestFile = file;
+                }
+            }
+
+            // Read the content of the latest file and add it to the weatherData list
+            try (BufferedReader reader = new BufferedReader(new FileReader(latestFile))) {
+                StringBuilder jsonBuilder = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    jsonBuilder.append(line);
+                }
+                String jsonData = jsonBuilder.toString();
+                weatherData.add(jsonData);
+                System.out.println("Loaded data from latest file: " + latestFile.getName());
+            } catch (IOException e) {
+                System.err.println("Error reading the latest file: " + e.getMessage());
+            }
+        } else {
+            System.out.println("No JSON files found in the data directory.");
+        }
     }
 
     /**
@@ -191,8 +230,9 @@ public class AggregationServer {
      * serverTime A map that stores the client socket and the last interaction timestamp.
      * fileMap A map that stores the client socket and the associated file to delete when the client is inactive.
      */
-    public static void removeInactiveClients() {
-        long currentTime = System.currentTimeMillis(); // Get the current timestamp
+    public static int removeInactiveClients() {
+        long currentTime = System.currentTimeMillis();// Get the current timestamp
+        int flag = 0;
 
         // Iterate over all clients in the serverTime map
         for (Socket client : new ArrayList<>(serverTime.keySet())) {
@@ -212,12 +252,15 @@ public class AggregationServer {
                     // Attempt to delete the associated file
                     if (file.exists() && file.delete()) {
                         System.out.println("Deleted file: " + filename);
+                        flag = 1;
                     } else {
                         System.out.println("Failed to delete file: " + filename);
+                        flag = 1;
                     }
                 }
             }
         }
+        return flag;
     }
 
     /**
@@ -225,11 +268,12 @@ public class AggregationServer {
      * It can be used to track the last interaction time for a client.
      * @param client The client's socket
      */
-    public static void storeClientUpdateTime(Socket client) {
+    public static int  storeClientUpdateTime(Socket client) {
         // Store the current system time (in milliseconds) as the last update time for the client
         long currentTime = System.currentTimeMillis();
         serverTime.put(client, currentTime); // Add/Update the client's update time
         System.out.println("Updated client time for: " + client.getRemoteSocketAddress() + " at " + currentTime);
+        return 1;
     }
 
     /**
@@ -246,9 +290,10 @@ public class AggregationServer {
      * - If an error occurs during file writing, an error message is printed to the console.
      */
 
-    private static void storeJsonData(String jsonData,UUID uniqueID) throws IOException {
+    public static int storeJsonData(String jsonData,UUID uniqueID) throws IOException {
         // Generate a unique filename based on timestamp or UUID
         String filename = "data/weather_data_" + uniqueID +"_"+System.currentTimeMillis()+ ".json";
+        int flag =0;
 
         // Specify the file path (current directory or a specific directory)
 
@@ -257,6 +302,7 @@ public class AggregationServer {
             writer.write(jsonData);
             writer.flush();
             System.out.println("Stored data in " + filename);
+            flag =1;
 
 
         } catch (IOException e) {
@@ -265,6 +311,7 @@ public class AggregationServer {
         finally {
             fileLock.unlock(); // Ensure the lock is released
         }
+        return flag;
     }
 
     /**
@@ -273,7 +320,7 @@ public class AggregationServer {
      * @param input The client message (may include HTTP headers and body)
      * @return Returns the JSON string if correct, or "-1" if the input is invalid.
      */
-    private static String isJsonCorrect(String input) {
+    public static String isJsonCorrect(String input) {
         int index = input.indexOf("Lamport-Clock");
         if (index == -1) return "-1"; // Invalid if "Lamport-Clock" not found
         index = input.indexOf("{", index);
@@ -285,42 +332,8 @@ public class AggregationServer {
         return "-1"; // Invalid JSON format
     }
 
-    /**
-     * Cleans up resources associated with a client socket when the client disconnects.
-     * This includes closing the client connection, removing the client from the server's tracking maps,
-     * and deleting any associated files that were created for this client.
-     *
-     * @param client The socket representing the client connection to be cleaned up.
-     * @throws IOException If an I/O error occurs while closing the client connection or deleting the associated file.
-     *
-     * Expected Output:
-     * - The client socket is closed, and the connection is terminated.
-     * - The client's entry is removed from the idMap and serverTime maps.
-     * - If an associated file exists, it is deleted, and a message is printed to the console indicating
-     *   whether the deletion was successful or failed.
-     */
 
-    private static void cleanupClient(Socket client) throws IOException {
-        // Close the client connection
-        client.close();
 
-        // Remove the client from the maps
-        idMap.remove(client);
-        serverTime.remove(client);
-
-        // Delete the associated file if it exists
-        String filename = fileMap.remove(client);
-        if (filename != null) {
-            File file = new File(filename);
-            if (file.exists()) {
-                if (file.delete()) {
-                    System.out.println("Deleted file: " + filename);
-                } else {
-                    System.out.println("Failed to delete file: " + filename);
-                }
-            }
-        }
-    }
 
     /**
      * Extracts the Lamport clock value from the HTTP response string.
@@ -328,7 +341,7 @@ public class AggregationServer {
      * @param response The HTTP response string containing the Lamport clock.
      * @return The Lamport clock value as an Integer, or null if not found or invalid.
      */
-    private static long extractLamportClock(String response) {
+    public static long extractLamportClock(String response) {
         // Split the response into individual lines using CRLF as delimiter
         String[] lines = response.split("\r\n");
 

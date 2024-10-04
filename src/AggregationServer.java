@@ -54,6 +54,23 @@ public class AggregationServer {
 
 
     }
+    // Method to close the server and clean up resources
+    public static void closeServer() {
+        // Close all client sockets
+        for (Socket client : idMap.keySet()) {
+            try {
+                client.close();
+                System.out.println("Closed connection for client: " + client.getRemoteSocketAddress());
+            } catch (IOException e) {
+                System.err.println("Error closing client socket: " + e.getMessage());
+            }
+        }
+
+        // Optionally, stop any additional threads or cleanup resources if necessary
+        System.out.println("Server shutting down.");
+    }
+
+
 
 
     /**

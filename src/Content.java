@@ -4,7 +4,7 @@ import java.net.*;
 import java.util.*;
 public class Content {
 
-    private static long contentLamportClock = 1;
+    public static long contentLamportClock = 1;
 
     public static void main(String[] args) throws IOException{
 
@@ -31,7 +31,11 @@ public class Content {
 
 
         String request = createPutRequest(jsonObject);
-        BufferedReader in = sendPutRequest(serverHost, serverPort, request);
+
+        Socket socket = new Socket(serverHost, serverPort);
+        DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        sendPutRequest(in, out,request);
         while(true){
         }
 
@@ -47,7 +51,7 @@ public class Content {
      * @return A Map containing the key-value pairs from the file, or
      *         null if the file is not found or an I/O error occurs.
      */
-    private static Map<String, String> parseFile(String filePath) {
+    public static Map<String, String> parseFile(String filePath) {
         Map<String, String> dataMap = new HashMap<>();
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
@@ -75,7 +79,7 @@ public class Content {
      * @param dataMap A map containing key-value pairs to be converted to JSON.
      * @return A string representing the JSON format of the provided map.
      */
-    private static String convertMapToJson(Map<String, String> dataMap) {
+    public static String convertMapToJson(Map<String, String> dataMap) {
         StringBuilder jsonBuilder = new StringBuilder();
         jsonBuilder.append("{");
 
@@ -100,7 +104,7 @@ public class Content {
      * @param jsonData The JSON data to be included in the request body.
      * @return A formatted PUT request string.
      */
-    private static String createPutRequest(String jsonData) {
+    public static String createPutRequest(String jsonData) {
         return String.format(
                 "PUT /weather.json HTTP/1.1\r\n" +
                         "User-Agent: ATOMClient/1/0\r\n" +
@@ -123,10 +127,8 @@ public class Content {
      * @return A BufferedReader for reading the server's response, or null if an error occurs.
      */
 
-    private static BufferedReader sendPutRequest(String serverHost, int serverPort, String putRequest) {
-        try (Socket socket = new Socket(serverHost, serverPort);
-             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+    public static BufferedReader sendPutRequest(BufferedReader in, DataOutputStream out,String putRequest) throws IOException {
+        try {
 
             // Send the PUT request
             out.writeUTF(putRequest);
@@ -151,7 +153,7 @@ public class Content {
         }
         return null;
     }
-    private static long extractLamportClock(String response) {
+    public static long extractLamportClock(String response) {
         // Split the response into individual lines using CRLF as delimiter
         String[] lines = response.split("\r\n");
 

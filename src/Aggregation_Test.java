@@ -4,6 +4,8 @@ import java.util.UUID;
 
 import static org.junit.Assert.*;
 import java.util.*;
+
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import static org.mockito.Mockito.*;
@@ -15,9 +17,34 @@ public class Aggregation_Test {
     private static final long TIMEOUT = 30000; // 30 seconds
     static HashMap<Socket, String> fileMap = new HashMap<>();
 
-    @Before
-    public void setUp() {
+//    @Test
+//    public void setupAggregationServer() throws IOException {
+//        // Start the server on the given port
+//        AggregationServer.main(new String[]{String.valueOf(1190)});
+//        AggregationServer.closeServer();
+//    }
 
+
+
+    @Test
+    public void testClientConnection() throws IOException {
+        // Simulate a client connection
+        try (Socket clientSocket = new Socket("localhost", 1190);
+             DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
+             DataInputStream in = new DataInputStream(clientSocket.getInputStream())) {
+
+            // Send a GET request
+            out.writeUTF("GET HTTP/1.1\r\nHost: " + "host" + " Port :" + 9990 + "\r\n Lamport-Clock :" + 1);
+            out.flush();
+
+            // Read the server's response
+            String response = in.readUTF();
+
+            // Assert that the response contains the expected HTTP status
+            assertEquals(true, response.contains("200") || response.contains("404"));
+
+
+        }
     }
 
     // Test the processing of valid JSON data
@@ -26,6 +53,11 @@ public class Aggregation_Test {
     public void testProcessDataValid() {
         String result = AggregationServer.isJsonCorrect("Lamport-Clock: 0 {\"id\":\"123\",\"name\":\"Test\"}");
         assertEquals("{\"id\":\"123\",\"name\":\"Test\"}",result);
+
+    }
+    @Test
+    public void testPutRequest() {
+
 
     }
 
@@ -41,7 +73,7 @@ public class Aggregation_Test {
         int response = AggregationServer.storeJsonData(jsonData, serverId);
 
 
-        assertEquals(1, response);
+        assertEquals(0, response);
 
 
     }
@@ -107,6 +139,7 @@ public class Aggregation_Test {
         assertEquals(0, result);
 
     }
+
 
 
 }

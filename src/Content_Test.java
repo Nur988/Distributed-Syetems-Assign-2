@@ -78,7 +78,7 @@ public class Content_Test {
         int serverPort = 8080;
         String putRequest = "PUT /weather.json HTTP/1.1\r\nContent-Length: 123\r\nLamport-Clock:1\r\n{\"id\":\"123\",\"name\":\"Test\"}";
 
-        // Since the socket is mocked, you can now call the sendPutRequest method
+        //Send request using mocked sockets
         BufferedReader response = Content.sendPutRequest(mockIn, mockOut, putRequest);
 
         // Verify that the correct request was sent

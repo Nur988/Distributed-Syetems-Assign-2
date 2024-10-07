@@ -37,3 +37,12 @@ java  GETClient  localhost:8080
 
 
 
+The Test files and corresponding description files have been added too
+
+data/ folder contains the input files and also stores the weather data
+
+
+
+
+
+

@@ -37,6 +37,11 @@ public class Aggregation_Test {
         // Allow time for the server to start up
         Thread.sleep(1000);
     }
+
+    /**
+     * Test to load weather data from the latest JSON file.
+     * It creates sample JSON files and checks if the latest data is loaded correctly.
+     */
     @Test
     public void testLoadWeatherDataFromLatestFile() throws IOException {
         // Create the "data" folder
@@ -125,12 +130,22 @@ public class Aggregation_Test {
         }
     }
 
+    /**
+     * Test the client retry mechanism.
+     * This test currently has no assertions and needs to be implemented further.
+     */
     @Test
     public void testClientRetry() {
 
         GETClient client = new GETClient();
         String request = "GET HTTP/1.1\nHost: " + "localhost" + " Port :" + "8080" + " Lamport-Clock :"+"1";
         client.sendGetRequest("localhost",8080,request);}
+
+
+    /**
+     * Test for invalid HTTP requests to ensure the server responds appropriately.
+     * This test checks for a 400 Bad Request response.
+     */
     @Test
     public void testInvalidRequest() {
         try (Socket clientSocket = new Socket("localhost", port);
@@ -154,6 +169,10 @@ public class Aggregation_Test {
         }
     }
 
+    /**
+     * Test the GET request when valid data exists on the server.
+     * It simulates a PUT request first to add data, followed by a GET request to retrieve it.
+     */
 
     @Test
     public void testGetRequestWithData() {
@@ -214,7 +233,9 @@ public class Aggregation_Test {
 
 
 
-
+    /**
+     * Test to check if the client can connect to the server and receive a response.
+     */
 
     @Test
     public void testClientConnection() throws IOException {
@@ -246,6 +267,8 @@ public class Aggregation_Test {
 
     }
 
+
+    //Tests the scenario where corrupted  JSON is sent and a 500 error response is requested
     @Test
     public void testCorruptedData() {
         // First, simulate a PUT request to add data to the server
@@ -292,6 +315,8 @@ public class Aggregation_Test {
 
 
     }
+
+    //Test if the Lamport clock checker function work properly
     @Test
     public void testValidLamportClock() {
         // Case with a valid Lamport-Clock header
@@ -300,6 +325,8 @@ public class Aggregation_Test {
         assertEquals(12345, lamportClock);
     }
 
+
+    //Test if the Lamport clock checker function work properly
     @Test
     public void testInvalidLamportClockValue() {
         // Case where the Lamport-Clock header has an invalid value
@@ -308,6 +335,8 @@ public class Aggregation_Test {
         assertEquals(-1, lamportClock); // Should return -1 as the clock value is invalid
     }
 
+
+    //Tests if the cuntion to update client time in store properly
     @Test
     public void testStoreClientUpdateTime() throws Exception {
         // Create a mock socket
@@ -323,6 +352,8 @@ public class Aggregation_Test {
 
 
     }
+
+    //Tests the logic that isused to remove the Content server that does not send data for more than 30 seconds
     @Test
     public void testRemoveInactiveClients() throws Exception {
         // Create mock Socket objects

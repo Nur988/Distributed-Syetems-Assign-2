@@ -32,11 +32,45 @@ public class Content {
 
         String request = createPutRequest(jsonObject);
 
-        Socket socket = new Socket(serverHost, serverPort);
-        DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        sendPutRequest(in, out,request);
-        while(true){
+        // Initialize retry parameters
+        int maxRetries = 5; // Maximum number of retries
+        int attempt = 0; // Current attempt count
+        boolean success = false; // Success flag for the request
+
+        while (attempt < maxRetries && !success) {
+            try (Socket socket = new Socket(serverHost, serverPort);
+                 DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+
+                // Send the PUT request
+                sendPutRequest(in, out, request);
+                success = true; // Mark as successful if no exception is thrown
+
+                // Optionally, read and print the server response (for debugging)
+                String response = in.readLine(); // Read the first line of the response
+                System.out.println("Response from server: " + response);
+
+            } catch (IOException e) {
+                attempt++; // Increment attempt count on failure
+                System.out.println("Attempt " + attempt + " failed: " + e.getMessage());
+                try {
+                    Thread.sleep(3000); // 2 seconds delay before retrying
+                } catch (InterruptedException ie) {
+                    // Handle interruption during sleep
+                    System.err.println("Retry interrupted: " + ie.getMessage());
+                }
+                if (attempt < maxRetries) {
+                    System.out.println("Retrying...");
+                } else {
+                    System.out.println("Maximum attempts reached. Exiting.");
+                }
+                // Optional: Implement a backoff strategy here, e.g., Thread.sleep(1000); for 1 second delay
+            }
+        }
+
+        // Loop to keep the application running (if necessary)
+        while (true) {
+            // You may want to handle incoming responses or other tasks here
         }
 
 

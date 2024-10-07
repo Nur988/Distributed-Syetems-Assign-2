@@ -22,7 +22,7 @@ java  AggregationServer.java 8080(any port number)
 
 Terminal -2(Content.java)
 javac Content.java
-java Content localhost:8080 data/input.txt
+java Content localhost:8080   data/input.txt
 
 Provide input file in data folder
 
@@ -31,7 +31,7 @@ Provide input file in data folder
 
 Terminal -3 (GETCient.java)
 javac GETClient.java
-java  GETClient localhost:8080
+java  GETClient  localhost:8080
 
 
 

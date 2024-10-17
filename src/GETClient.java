@@ -68,10 +68,10 @@ public class GETClient {
                 isConnected = true;
 
                 // Continuously listen for further responses from the server
-//                while (true) {
-//                    String response = in.readUTF();
-//                    processResponse(response);
-//                }
+                while (true) {
+                    String response = in.readUTF();
+                    processResponse(response);
+                }
             } catch (IOException e) {
                 // Handle connection errors and display the error message
                 retryCount++;
